@@ -162,6 +162,40 @@ unsafe impl<P, const N: u8> peripheral::Source<u32> for lpspi::Lpspi<P, N> {
     }
 }
 
+// Safety: a LPSPI can provide data for a DMA transfer. Its receive data register
+// points to static memory.
+unsafe impl<P, const N: u8> peripheral::Source<u16> for lpspi::Lpspi<P, N> {
+    fn source_signal(&self) -> u32 {
+        LPSPI_DMA_RX_MAPPING[N as usize - 1]
+    }
+    fn source_address(&self) -> *const u16 {
+        self.rdr().cast()
+    }
+    fn enable_source(&mut self) {
+        self.enable_dma_receive()
+    }
+    fn disable_source(&mut self) {
+        self.disable_dma_receive();
+    }
+}
+
+// Safety: a LPSPI can provide data for a DMA transfer. Its receive data register
+// points to static memory.
+unsafe impl<P, const N: u8> peripheral::Source<u8> for lpspi::Lpspi<P, N> {
+    fn source_signal(&self) -> u32 {
+        LPSPI_DMA_RX_MAPPING[N as usize - 1]
+    }
+    fn source_address(&self) -> *const u8 {
+        self.rdr().cast()
+    }
+    fn enable_source(&mut self) {
+        self.enable_dma_receive()
+    }
+    fn disable_source(&mut self) {
+        self.disable_dma_receive();
+    }
+}
+
 // Safety: a LPSPI can receive data for a DMA transfer. Its transmit data register
 // points to static memory.
 unsafe impl<P, const N: u8> peripheral::Destination<u32> for lpspi::Lpspi<P, N> {
@@ -179,9 +213,51 @@ unsafe impl<P, const N: u8> peripheral::Destination<u32> for lpspi::Lpspi<P, N> 
     }
 }
 
+// Safety: a LPSPI can receive data for a DMA transfer. Its transmit data register
+// points to static memory.
+unsafe impl<P, const N: u8> peripheral::Destination<u16> for lpspi::Lpspi<P, N> {
+    fn destination_signal(&self) -> u32 {
+        LPSPI_DMA_TX_MAPPING[N as usize - 1]
+    }
+    fn destination_address(&self) -> *const u16 {
+        self.tdr().cast()
+    }
+    fn enable_destination(&mut self) {
+        self.enable_dma_transmit();
+    }
+    fn disable_destination(&mut self) {
+        self.disable_dma_transmit();
+    }
+}
+
+// Safety: a LPSPI can receive data for a DMA transfer. Its transmit data register
+// points to static memory.
+unsafe impl<P, const N: u8> peripheral::Destination<u8> for lpspi::Lpspi<P, N> {
+    fn destination_signal(&self) -> u32 {
+        LPSPI_DMA_TX_MAPPING[N as usize - 1]
+    }
+    fn destination_address(&self) -> *const u8 {
+        self.tdr().cast()
+    }
+    fn enable_destination(&mut self) {
+        self.enable_dma_transmit();
+    }
+    fn disable_destination(&mut self) {
+        self.disable_dma_transmit();
+    }
+}
+
 // Safety: a LPSPI can perform bi-directional I/O from a single buffer. Reads from
 // the buffer are always performed before writes.
 unsafe impl<P, const N: u8> peripheral::Bidirectional<u32> for lpspi::Lpspi<P, N> {}
+
+// Safety: a LPSPI can perform bi-directional I/O from a single buffer. Reads from
+// the buffer are always performed before writes.
+unsafe impl<P, const N: u8> peripheral::Bidirectional<u16> for lpspi::Lpspi<P, N> {}
+
+// Safety: a LPSPI can perform bi-directional I/O from a single buffer. Reads from
+// the buffer are always performed before writes.
+unsafe impl<P, const N: u8> peripheral::Bidirectional<u8> for lpspi::Lpspi<P, N> {}
 
 impl<P, const N: u8> lpspi::Lpspi<P, N> {
     /// Use a DMA channel to write data to the LPSPI peripheral.
@@ -194,8 +270,8 @@ impl<P, const N: u8> lpspi::Lpspi<P, N> {
     pub fn dma_write<'a>(
         &'a mut self,
         channel: &'a mut Channel,
-        buffer: &'a [u32],
-    ) -> Result<peripheral::Write<'a, Self, u32>, lpspi::LpspiError> {
+        buffer: &'a [u16],
+    ) -> Result<peripheral::Write<'a, Self, u16>, lpspi::LpspiError> {
         let mut transaction = self.bus_transaction(buffer)?;
         transaction.receive_data_mask = true;
 
@@ -213,8 +289,8 @@ impl<P, const N: u8> lpspi::Lpspi<P, N> {
     pub fn dma_read<'a>(
         &'a mut self,
         channel: &'a mut Channel,
-        buffer: &'a mut [u32],
-    ) -> Result<peripheral::Read<'a, Self, u32>, lpspi::LpspiError> {
+        buffer: &'a mut [u8],
+    ) -> Result<peripheral::Read<'a, Self, u8>, lpspi::LpspiError> {
         let mut transaction = self.bus_transaction(buffer)?;
         transaction.transmit_data_mask = true;
 
@@ -234,8 +310,8 @@ impl<P, const N: u8> lpspi::Lpspi<P, N> {
         &'a mut self,
         rx: &'a mut Channel,
         tx: &'a mut Channel,
-        buffer: &'a mut [u32],
-    ) -> Result<peripheral::FullDuplex<'a, Self, u32>, lpspi::LpspiError> {
+        buffer: &'a mut [u16],
+    ) -> Result<peripheral::FullDuplex<'a, Self, u16>, lpspi::LpspiError> {
         let transaction = self.bus_transaction(buffer)?;
 
         self.wait_for_transmit_fifo_space()?;
